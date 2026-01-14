@@ -22,13 +22,11 @@ import java.time.LocalDate;
  *         - toString() method
  *         - equals() and hashCode() methods
  * @NoArgsConstructor - generates empty constructor: new User()
- * @AllArgsConstructor - generates constructor with all fields
  */
 @Entity
 @Table(name = "users")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class User {
     
     /**
