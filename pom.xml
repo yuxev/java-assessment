@@ -55,7 +55,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
-        
+
         <!-- JavaFaker - for generating realistic fake data -->
         <dependency>
             <groupId>com.github.javafaker</groupId>
