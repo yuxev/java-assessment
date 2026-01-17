@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -21,10 +22,15 @@ import org.springframework.security.web.SecurityFilterChain;
  * Plain text: "password123" → stored as "password123" ❌ DANGEROUS!
  * BCrypt:     "password123" → stored as "$2a$10$N9qo8..." ✅ SECURE!
  * 
+ * JWT STATELESS AUTHENTICATION:
+ * - No sessions stored on server
+ * - Each request includes JWT token in Authorization header
+ * - Server validates token signature and expiration
+ * 
  * INTERVIEW TALKING POINT:
  * "BCrypt is a slow hashing function designed to resist brute-force attacks.
- * It automatically generates a random salt for each password, preventing
- * rainbow table attacks. The work factor can be adjusted as hardware improves."
+ * JWT provides stateless authentication - the server doesn't need to store
+ * sessions, making it scalable for microservices and distributed systems."
  */
 @Configuration
 @EnableWebSecurity
@@ -45,13 +51,19 @@ public class SecurityConfig {
     }
     
     /**
-     * Configure HTTP security to permit all endpoints (for now).
+     * Configure HTTP security with JWT authentication.
      * 
-     * WHY PERMIT ALL?
-     * - API #1 (generate) and #2 (batch) should be unsecured per requirements
-     * - JWT authentication will be added later for API #3, #4, #5
+     * ENDPOINT SECURITY:
+     * - /api/users/generate - PUBLIC (no auth required)
+     * - /api/users/batch    - PUBLIC (no auth required)
+     * - /api/auth           - PUBLIC (login endpoint)
+     * - /api/users/me       - SECURED (requires JWT)
+     * - /api/users/{username} - SECURED (requires JWT + admin role)
      * 
-     * LATER: We'll add JWT filter and restrict /api/users/me and /api/users/{username}
+     * SESSION POLICY:
+     * - STATELESS: No HTTP sessions, each request must include JWT
+     * - Server doesn't store session state
+     * - Scalable for distributed systems
      * 
      * @param http - HttpSecurity configuration object
      * @return SecurityFilterChain
@@ -60,9 +72,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())  // Disable CSRF for REST API
+            .csrf(csrf -> csrf.disable())  // Disable CSRF for REST API (using JWT instead)
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))  // No sessions, JWT only
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll()   // Allow all endpoints for now
+                .requestMatchers("/api/users/generate", "/api/users/batch", "/api/auth").permitAll()
+                .anyRequest().authenticated()  // All other endpoints require authentication
             );
         
         return http.build();
