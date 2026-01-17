@@ -2,6 +2,8 @@ package com.assessment.controller;
 
 import com.assessment.dto.BatchImportSummary;
 import com.assessment.dto.GeneratedUser;
+import com.assessment.model.User;
+import com.assessment.repository.UserRepository;
 import com.assessment.service.UserBatchService;
 import com.assessment.service.UserGenerationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,6 +11,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,6 +37,7 @@ public class UserController {
     
     private final UserGenerationService userGenerationService;
     private final UserBatchService userBatchService;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     
     /**
@@ -42,9 +47,11 @@ public class UserController {
      */
     public UserController(UserGenerationService userGenerationService,
                          UserBatchService userBatchService,
+                         UserRepository userRepository,
                          ObjectMapper objectMapper) {
         this.userGenerationService = userGenerationService;
         this.userBatchService = userBatchService;
+        this.userRepository = userRepository;
         this.objectMapper = objectMapper;
     }
     
@@ -163,6 +170,128 @@ public class UserController {
             // Handle JSON parsing errors, database errors, etc.
             Map<String, String> error = new HashMap<>();
             error.put("error", "Import failed");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+    
+    /**
+     * ENDPOINT #4: Get My Profile - Returns authenticated user's profile
+     * 
+     * URL: GET http://localhost:9090/api/users/me
+     * Headers: Authorization: Bearer <jwt-token>
+     * 
+     * AUTHENTICATION:
+     * - Requires valid JWT token in Authorization header
+     * - JWT filter extracts user email and sets authentication
+     * - This method receives authentication from Spring Security context
+     * 
+     * PROCESS:
+     * 1. Authentication object contains user's email (from JWT)
+     * 2. Find user by email in database
+     * 3. Return user profile (excluding password)
+     * 
+     * RESPONSE (Success - 200):
+     * {
+     *   "id": 1,
+     *   "username": "john.doe",
+     *   "email": "john@example.com",
+     *   "firstName": "John",
+     *   "lastName": "Doe",
+     *   "role": "user",
+     *   ...
+     * }
+     * 
+     * ERROR HANDLING:
+     * - Returns 401 if no JWT token or invalid token
+     * - Returns 404 if user not found in database
+     * 
+     * @param authentication - Spring Security authentication object (auto-injected)
+     * @return User profile data
+     */
+    @GetMapping("/me")
+    public ResponseEntity<?> getMyProfile(Authentication authentication) {
+        try {
+            // Authentication is null if no valid JWT token
+            if (authentication == null || !authentication.isAuthenticated()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Unauthorized");
+                error.put("message", "Valid JWT token required");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+            
+            // Get email from authentication (set by JWT filter)
+            String email = authentication.getName();
+            
+            // Find user by email
+            User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            // Return user profile
+            return ResponseEntity.ok(user);
+            
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error retrieving profile");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+    
+    /**
+     * ENDPOINT #5: Get User by Username - Returns any user's profile (ADMIN ONLY)
+     * 
+     * URL: GET http://localhost:9090/api/users/{username}
+     * Headers: Authorization: Bearer <jwt-token>
+     * 
+     * AUTHORIZATION:
+     * - Requires valid JWT token with ADMIN role
+     * - @PreAuthorize checks role before method execution
+     * - Regular users get 403 Forbidden
+     * 
+     * PROCESS:
+     * 1. JWT filter validates token and extracts role
+     * 2. Spring Security checks if role is ADMIN
+     * 3. If authorized, find user by username
+     * 4. Return user profile
+     * 
+     * RESPONSE (Success - 200):
+     * {
+     *   "id": 1,
+     *   "username": "john.doe",
+     *   "email": "john@example.com",
+     *   "role": "user",
+     *   ...
+     * }
+     * 
+     * ERROR HANDLING:
+     * - Returns 401 if no JWT token or invalid token
+     * - Returns 403 if user role is not ADMIN
+     * - Returns 404 if username not found
+     * 
+     * @param username - username to look up
+     * @return User profile data
+     */
+    @GetMapping("/{username}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getUserByUsername(@PathVariable String username) {
+        try {
+            // Find user by username
+            User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+            
+            // Return user profile
+            return ResponseEntity.ok(user);
+            
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "User not found");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error retrieving user");
             error.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
