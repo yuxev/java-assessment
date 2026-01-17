@@ -11,6 +11,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 /**
  * Security configuration for password encryption and endpoint access.
@@ -67,6 +72,8 @@ public class SecurityConfig {
      * - /api/users/generate - PUBLIC (no auth required)
      * - /api/users/batch    - PUBLIC (no auth required)
      * - /api/auth           - PUBLIC (login endpoint)
+     * - /swagger-ui/**      - PUBLIC (Swagger UI pages)
+     * - /v3/api-docs/**     - PUBLIC (OpenAPI documentation)
      * - /api/users/me       - SECURED (requires JWT)
      * - /api/users/{username} - SECURED (requires JWT + admin role)
      * 
@@ -82,15 +89,39 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))  // Enable CORS
             .csrf(csrf -> csrf.disable())  // Disable CSRF for REST API (using JWT instead)
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))  // No sessions, JWT only
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/users/generate", "/api/users/batch", "/api/auth").permitAll()
+                .requestMatchers(
+                    "/api/users/generate", 
+                    "/api/users/batch", 
+                    "/api/auth",
+                    "/swagger-ui/**",      // Swagger UI interface
+                    "/v3/api-docs/**"      // OpenAPI JSON documentation
+                ).permitAll()
                 .anyRequest().authenticated()  // All other endpoints require authentication
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);  // Add JWT filter
         
         return http.build();
+    }
+    
+    /**
+     * CORS configuration to allow Swagger UI to make requests.
+     * Allows requests from any origin (needed for Codespaces tunnel URLs).
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("*"));  // Allow all origins (for development)
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(false);  // Must be false when allowedOrigins is *
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }
