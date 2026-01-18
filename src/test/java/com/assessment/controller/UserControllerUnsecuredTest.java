@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
@@ -38,7 +40,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @AutoConfigureMockMvc(addFilters = false) - Disables Spring Security filters for testing
  */
 @AutoConfigureMockMvc(addFilters = false)
-@WebMvcTest(UserController.class)
+@WebMvcTest(value = UserController.class,
+        excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, 
+                classes = {com.assessment.security.JwtAuthenticationFilter.class}))
 class UserControllerUnsecuredTest {
     
     @Autowired
@@ -52,6 +56,9 @@ class UserControllerUnsecuredTest {
     
     @MockBean
     private UserBatchService userBatchService;
+    
+    @MockBean
+    private com.assessment.repository.UserRepository userRepository;
     
     // ========================
     // GENERATE ENDPOINT TESTS
