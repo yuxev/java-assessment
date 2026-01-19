@@ -227,7 +227,7 @@ src/test/java/com/assessment/
 - Console available at: `http://localhost:9090/h2-console`
 
 **Connection Details:**
-- URL: `jdbc:h2:mem:testdb`
+- URL: `jdbc:h2:mem:userdb`
 - Username: `sa`
 - Password: *(empty)*
 
@@ -274,15 +274,6 @@ src/test/java/com/assessment/
 | Password encryption | ✅ |
 | JWT authentication | ✅ |
 | Role-based authorization | ✅ |
-
----
-
-## 👨‍💻 Developer
-
-**Assessment Project**  
-Built with ❤️ using Spring Boot
-
-**Contact:** Available upon request
 
 ---
 
