@@ -1,27 +1,33 @@
 package com.assessment.config;
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-
-/**
- * OpenAPI/Swagger configuration.
- * Configures the server URL for Codespaces environment.
- */
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    public OpenAPI customOpenAPI() {
-        // Use empty server URL - Swagger will use the same origin as the UI
-        // This works in Codespaces because Swagger UI and API are on the same tunnel URL
-        return new OpenAPI()
-                .info(new Info()
-                        .title("User Management API")
-                        .version("1.0")
-                        .description("REST API for user generation, authentication, and profile management"));
-        // No servers configured = uses same origin as Swagger UI
-    }
+	@Bean
+	public OpenAPI customOpenAPI() {
+		final String securitySchemeName = "bearerAuth";
+
+		return new OpenAPI()
+				.info(new Info()
+						.title("User Management API")
+						.version("1.0")
+						.description("REST API for user generation, authentication, and profile management"))
+				.addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
+				.components(new Components()
+						.addSecuritySchemes(securitySchemeName,
+								new SecurityScheme()
+										.name(securitySchemeName)
+										.type(SecurityScheme.Type.HTTP)
+										.scheme("bearer")
+										.bearerFormat("JWT")
+										.description("Enter JWT token obtained from /api/auth/login")));
+	}
 }
